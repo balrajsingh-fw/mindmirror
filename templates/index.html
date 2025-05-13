@@ -4,69 +4,125 @@
   <meta charset="UTF-8">
   <title>MindMirror - Your Mental Health Companion</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <style>
+    <style>
     body {
       background: #f7f9fc;
       font-family: 'Segoe UI', sans-serif;
     }
+
     .header {
       margin-top: 40px;
+      text-align: center;
+      margin-bottom: 30px;
     }
+
     .video-container {
-      max-width: 720px;
-      margin: auto;
       border: 2px solid #dee2e6;
       border-radius: 10px;
       overflow: hidden;
       background: #000;
+      width: 100%;
     }
+
     #video {
       width: 100%;
       height: auto;
+      display: block;
     }
-    .status-box {
-      margin-top: 20px;
+
+    .status-box,
+    .result-box,
+    .button-box {
       background: #ffffff;
       padding: 20px;
       border-radius: 10px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+      margin-bottom: 15px;
     }
+
     .spinner-border {
       width: 2rem;
       height: 2rem;
+    }
+
+    .btn {
+      width: 48%;
+    }
+
+    #graphSection {
+      background: #fff;
+      border: 2px dashed #dee2e6;
+      border-radius: 10px;
+      text-align: center;
+      padding: 40px;
+      color: #6c757d;
+      min-height: 300px;
+    }
+
+    @media (max-width: 768px) {
+      .btn {
+        width: 100%;
+        margin-bottom: 10px;
+      }
+
+      .video-container,
+      .status-box,
+      .result-box,
+      .button-box,
+      #graphSection {
+        max-width: 100%;
+      }
     }
   </style>
 </head>
 <body>
 
-  <div class="container text-center header">
-    <h1 class="display-4">🧠 MindMirror</h1>
-    <p class="lead">Early psychiatric detection through real-time video/audio analysis.</p>
-    <button id="startBtn" class="btn btn-success mt-3">Start Analysis</button>
-    <button id="stopBtn" class="btn btn-danger mt-3 ms-2" disabled>Stop</button>
-  </div>
-
-  <div class="container mt-5">
-    <div class="video-container mb-3">
-      <video id="video" autoplay muted></video>
+  <div class="container">
+    <!-- Top Row: Heading & Description -->
+    <div class="header">
+      <h2>🧠 MindMirror</h2>
+      <p>Your Personal Mental Health Companion. Start analysis to evaluate your emotional and mental state.</p>
     </div>
 
-    <div class="status-box text-center">
-      <div id="spinner" class="mb-3" style="display: none;">
-        <div class="spinner-border text-primary" role="status">
-          <span class="visually-hidden">Loading...</span>
+    <!-- Second Row: Video + Status + Buttons -->
+    <div class="row">
+      <!-- Left: Video -->
+      <div class="col-md-6">
+        <div class="video-container mb-3" id="videoSection">
+          <video id="video" autoplay muted></video>
         </div>
       </div>
-      <h4>Status:</h4>
-      <p id="status-text">Click "Start Analysis" to begin.</p>
-      <div id="depression-status">
-        <strong>Depression Status:</strong> <span id="depression-text">Pending...</span>
-      </div>
-      <div id="anxiety-status" class="mt-2">
-        <strong>Anxiety Status:</strong> <span id="anxiety-text">Pending...</span>
+
+      <!-- Right: Status + Results + Buttons -->
+      <div class="col-md-6 d-flex flex-column">
+        <!-- Status Box -->
+        <div class="status-box text-center">
+          <h4>Status:</h4>
+          <p id="status-text">Click "Start Analysis" to begin.</p>
+          <div id="spinner" style="display: none;">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Result Box -->
+        <div class="result-box text-center">
+          <div>
+            <strong>Depression Status:</strong> <span id="depression-text">Pending...</span>
+          </div>
+          <div class="mt-2">
+            <strong>Anxiety Status:</strong> <span id="anxiety-text">Pending...</span>
+          </div>
+        </div>
+
+        <!-- Control Buttons -->
+        <div class="button-box text-center">
+          <button id="startBtn" class="btn btn-success me-2">Start Analysis</button>
+          <button id="stopBtn" class="btn btn-danger" disabled>Stop</button>
+        </div>
       </div>
     </div>
-  </div>
 
   <!-- Scripts -->
 <script>
