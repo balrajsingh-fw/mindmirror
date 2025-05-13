@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>MindMirror - Your Mental Health Companion</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      background: #f7f9fc;
+      font-family: 'Segoe UI', sans-serif;
+    }
+    .header {
+      margin-top: 40px;
+    }
+    .video-container {
+      max-width: 720px;
+      margin: auto;
+      border: 2px solid #dee2e6;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #000;
+    }
+    #video {
+      width: 100%;
+      height: auto;
+    }
+    .status-box {
+      margin-top: 20px;
+      background: #ffffff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    .spinner-border {
+      width: 2rem;
+      height: 2rem;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container text-center header">
+    <h1 class="display-4">🧠 MindMirror</h1>
+    <p class="lead">Early psychiatric detection through real-time video/audio analysis.</p>
+    <button id="startBtn" class="btn btn-success mt-3">Start Analysis</button>
+    <button id="stopBtn" class="btn btn-danger mt-3 ms-2" disabled>Stop</button>
+  </div>
+
+  <div class="container mt-5">
+    <div class="video-container mb-3">
+      <video id="video" autoplay muted></video>
+    </div>
+
+    <div class="status-box text-center">
+      <div id="spinner" class="mb-3" style="display: none;">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+      </div>
+      <h4>Status:</h4>
+      <p id="status-text">Click "Start Analysis" to begin.</p>
+      <div id="depression-status">
+        <strong>Depression Status:</strong> <span id="depression-text">Pending...</span>
+      </div>
+      <div id="anxiety-status" class="mt-2">
+        <strong>Anxiety Status:</strong> <span id="anxiety-text">Pending...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+<script>
+const video = document.getElementById('video');
+const statusText = document.getElementById('status-text');
+const spinner = document.getElementById('spinner');
+const startBtn = document.getElementById('startBtn');
+const stopBtn = document.getElementById('stopBtn');
+const depressionText = document.getElementById('depression-text');
+const anxietyText = document.getElementById('anxiety-text');
+
+let socket;
+let stream;
+let mediaRecorder;
+let audioChunks = [];
+let selectedMimeType = '';
+let isRecording = false;
+
+// Function to detect supported MIME type
+function getSupportedMimeType(preferredTypes = []) {
+  for (const type of preferredTypes) {
+    if (MediaRecorder.isTypeSupported(type)) {
+      return type;
+    }
+  }
+  return ''; // Let browser pick default if none supported
+}
+
+startBtn.onclick = async function () {
+  startBtn.disabled = true;
+  stopBtn.disabled = false;
+  spinner.style.display = 'block';
+  statusText.textContent = "Connecting...";
+
+  const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
+  socket = new WebSocket(wsScheme + '://' + window.location.host + '/ws/stream/');
+
+  socket.onopen = function () {
+    statusText.textContent = "WebSocket connected. Starting stream...";
+  };
+
+  socket.onmessage = function (e) {
+    const data = JSON.parse(e.data);
+    if (data.analysis) {
+      const a = data.analysis;
+
+      if (a.emotion !== undefined) {
+        statusText.textContent = `Emotion: ${a.emotion}`;
+      }
+
+      if (a.depression_status !== undefined) {
+        depressionText.textContent = a.depression_status;
+      }
+
+      if (a.anxiety_status !== undefined) {
+        anxietyText.textContent = a.anxiety_status;
+      }
+    } else if (data.message) {
+      statusText.textContent = data.message;
+    }
+  };
+
+  socket.onerror = function () {
+    statusText.textContent = "WebSocket error.";
+    spinner.style.display = 'none';
+  };
+
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    video.srcObject = stream;
+    statusText.textContent = "Streaming started. Analyzing...";
+
+    // Dynamically select supported MIME type
+    const preferredTypes = [
+      'video/webm;codecs=vp8,opus',
+      'video/webm',
+      'audio/webm',
+      'audio/ogg'
+    ];
+    selectedMimeType = getSupportedMimeType(preferredTypes);
+    console.log("Selected MIME type:", selectedMimeType);
+
+    try {
+      mediaRecorder = selectedMimeType
+        ? new MediaRecorder(stream, { mimeType: selectedMimeType })
+        : new MediaRecorder(stream);
+    } catch (e) {
+      console.error("Failed to initialize MediaRecorder:", e);
+      statusText.textContent = "MediaRecorder error: " + e.message;
+      spinner.style.display = 'none';
+      return;
+    }
+
+    mediaRecorder.ondataavailable = function (event) {
+      if (event.data && event.data.size > 0) {
+        audioChunks.push(event.data);
+      }
+    };
+
+    isRecording = true;
+    startAudioRecordingCycle();
+    startImageStreaming(); // Start image streaming separately
+
+  } catch (err) {
+    console.error('Error:', err);
+    if (err.name === 'NotFoundError') {
+      statusText.textContent = "No camera or microphone found. Please check your device.";
+    } else if (err.name === 'NotAllowedError') {
+      statusText.textContent = "Permission denied. Please allow access to the camera and microphone.";
+    } else {
+      statusText.textContent = `Error accessing camera or microphone: ${err.message}`;
+    }
+    spinner.style.display = 'none';
+  }
+};
+
+stopBtn.onclick = function () {
+  if (stream) {
+    stream.getTracks().forEach(track => track.stop());
+  }
+  if (socket) {
+    socket.close();
+  }
+  video.srcObject = null;
+  statusText.textContent = "Analysis stopped.";
+  spinner.style.display = 'none';
+  startBtn.disabled = false;
+  stopBtn.disabled = true;
+  isRecording = false;
+};
+
+function startAudioRecordingCycle() {
+  if (!isRecording) return;
+
+  audioChunks = [];
+
+  mediaRecorder = selectedMimeType
+    ? new MediaRecorder(stream, { mimeType: selectedMimeType })
+    : new MediaRecorder(stream);
+
+  mediaRecorder.ondataavailable = function (event) {
+    if (event.data && event.data.size > 0) {
+      audioChunks.push(event.data);
+    }
+  };
+
+  mediaRecorder.onstop = async function () {
+    try {
+      const audioBlob = new Blob(audioChunks, { type: selectedMimeType || 'audio/webm' });
+      const arrayBuffer = await audioBlob.arrayBuffer();
+      const base64String = arrayBufferToBase64(arrayBuffer);
+
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext('2d').drawImage(video, 0, 0);
+      const imageData = canvas.toDataURL('image/jpeg');
+
+      socket.send(JSON.stringify({
+        image: imageData,
+        audio_chunk: base64String
+      }));
+    } catch (err) {
+      console.error('Error processing audio:', err);
+    }
+
+    if (isRecording) {
+      setTimeout(startAudioRecordingCycle, 0);
+    }
+  };
+
+  try {
+    mediaRecorder.start();
+    setTimeout(() => {
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+      }
+    }, 10000);
+  } catch (err) {
+    console.error('Failed to start MediaRecorder:', err);
+  }
+}
+
+// Helper function to convert ArrayBuffer to base64
+function arrayBufferToBase64(buffer) {
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return window.btoa(binary);
+}
+
+// Function to start image streaming every second
+function startImageStreaming() {
+  const imageInterval = setInterval(() => {
+    if (!isRecording) {
+      clearInterval(imageInterval); // Stop when recording stops
+      return;
+    }
+
+    if (video.videoWidth === 0 || video.videoHeight === 0) {
+      return; // Wait until video is ready
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    const imageData = canvas.toDataURL('image/jpeg');
+
+    socket.send(JSON.stringify({ image: imageData }));
+  }, 1000);
+}
+</script>
+
+</body>
+</html>

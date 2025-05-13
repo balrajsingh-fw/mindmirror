@@ -1,0 +1,12 @@
+channels==4.2.2
+deepface==0.0.93
+opencv-python-headless==4.11.0.86
+deepface
+numpy
+tensorflow
+librosa
+soundfile
+scikit-learn
+ffmpeg-python==0.2.0
+daphne==4.1.2
+tf-keras==2.19.0
