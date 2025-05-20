@@ -6,4 +6,4 @@ For python 3.10.1 requirements.txt is requirements file.
 install python of preferred version and then run from root folder pip install -r requirements.txt or pip install -r requirements_old.txt. Then run the daphne command to execute asgi server for current python project.
 
 Run the below command in terminal of root folder.
-daphne mindmirror.asgi:application
+daphne -p 3002 -b 0.0.0.0 mindmirror.asgi:application
